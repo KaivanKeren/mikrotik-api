@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real-Time Bandwidth Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 text-gray-900">
+    <div class="max-w-5xl mx-auto p-6">
+      <h1 class="text-3xl font-bold text-center text-blue-600">
+        Real-Time Bandwidth Monitor
+      </h1>
+
+      <!-- Interface Traffic Data -->
+      <div class="mt-8">
+        <h2 class="text-xl font-semibold text-blue-500">
+          Interface Traffic Data
+        </h2>
+        <div class="overflow-x-auto mt-4">
+          <table
+            class="w-full border-collapse bg-white shadow-md rounded-lg overflow-hidden"
+          >
+            <thead class="bg-blue-600 text-white">
+              <tr>
+                <th class="py-3 px-4 text-left">Interface</th>
+                <th class="py-3 px-4 text-left">RX Rate (kbps)</th>
+                <th class="py-3 px-4 text-left">TX Rate (kbps)</th>
+              </tr>
+            </thead>
+            <tbody id="interfaceTable" class="text-gray-700 divide-y">
+              <tr>
+                <td colspan="3" class="text-center py-4">
+                  Waiting for data...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bandwidth Usage Per IP -->
+      <div class="mt-8">
+        <h2 class="text-xl font-semibold text-blue-500">
+          Bandwidth Usage Per IP
+        </h2>
+        <div class="overflow-x-auto mt-4">
+          <table
+            class="w-full border-collapse bg-white shadow-md rounded-lg overflow-hidden"
+          >
+            <thead class="bg-blue-600 text-white">
+              <tr>
+                <th class="py-3 px-4 text-left">IP Address</th>
+                <th class="py-3 px-4 text-left">Download (Bytes)</th>
+                <th class="py-3 px-4 text-left">Upload (Bytes)</th>
+              </tr>
+            </thead>
+            <tbody id="bandwidthTable" class="text-gray-700 divide-y">
+              <tr>
+                <td colspan="3" class="text-center py-4">
+                  Waiting for data...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const ws = new WebSocket("ws://localhost:9090");
+
+      ws.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "bandwidth_update") {
+          updateInterfaceTable(data.data.interfaces);
+          updateBandwidthTable(data.data.usageByIP);
+        } else if (data.type === "bandwidth_alert") {
+          alert(
+            `⚠️ Warning: High bandwidth usage detected for ${
+              data.ip
+            } (${data.usage.toLocaleString()} bytes)`
+          );
+        }
+      };
+
+      function updateInterfaceTable(interfaces) {
+        document.getElementById("interfaceTable").innerHTML = interfaces
+          .map(
+            (iface) =>
+              `<tr class="hover:bg-gray-100 transition">
+                <td class="py-3 px-4">${iface.interface}</td>
+                <td class="py-3 px-4">${iface.rxKbps}</td>
+                <td class="py-3 px-4">${iface.txKbps}</td>
+              </tr>`
+          )
+          .join("");
+      }
+
+      function updateBandwidthTable(usageByIP) {
+        document.getElementById("bandwidthTable").innerHTML = Object.entries(
+          usageByIP
+        )
+          .map(
+            ([ip, usage]) =>
+              `<tr class="hover:bg-gray-100 transition">
+                <td class="py-3 px-4">${ip}</td>
+                <td class="py-3 px-4">${usage.rx.toLocaleString()}</td>
+                <td class="py-3 px-4">${usage.tx.toLocaleString()}</td>
+              </tr>`
+          )
+          .join("");
+      }
+    </script>
+  </body>
+</html>
