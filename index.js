@@ -4,7 +4,7 @@ const WebSocket = require("ws");
 const cors = require("cors");
 
 const app = express();
-const port = 3000;
+const port = 3030;
 
 app.use(cors());
 
@@ -44,6 +44,83 @@ async function connectMikroTik() {
     } catch (error) {
       console.error("Error connecting to MikroTik:", error);
     }
+  }
+}
+
+async function getAllUsers() {
+  try {
+    await connectMikroTik();
+    const users = await connection.write("/ip/hotspot/user/print");
+    return users.map((user) => ({
+      username: user.name,
+      profile: user.profile,
+      uptime: user.uptime,
+      bytesIn: user["bytes-in"],
+      bytesOut: user["bytes-out"],
+      disabled: user.disabled === "true",
+      comment: user.comment || "",
+      limitBytesIn: user["limit-bytes-in"],
+      limitBytesOut: user["limit-bytes-out"],
+    }));
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return [];
+  }
+}
+
+// Get user details by username
+async function getUserDetails(username) {
+  try {
+    await connectMikroTik();
+    const user = await connection.write("/ip/hotspot/user/print", [
+      "=.proplist=name,profile,uptime,bytes-in,bytes-out,disabled,comment,limit-bytes-in,limit-bytes-out,last-logged-out",
+      "?name=" + username,
+    ]);
+
+    if (user.length === 0) {
+      return null;
+    }
+
+    // Get active sessions for the user
+    const activeSessions = await connection.write("/ip/hotspot/active/print", [
+      "?user=" + username,
+    ]);
+
+    // Get user's connection history
+    const history = await connection.write("/ip/hotspot/host/print", [
+      "?user=" + username,
+    ]);
+
+    return {
+      basicInfo: {
+        username: user[0].name,
+        profile: user[0].profile,
+        uptime: user[0].uptime,
+        bytesIn: user[0]["bytes-in"],
+        bytesOut: user[0]["bytes-out"],
+        disabled: user[0].disabled === "true",
+        comment: user[0].comment || "",
+        limitBytesIn: user[0]["limit-bytes-in"],
+        limitBytesOut: user[0]["limit-bytes-out"],
+        lastLoggedOut: user[0]["last-logged-out"],
+      },
+      activeSessions: activeSessions.map((session) => ({
+        ipAddress: session.address,
+        macAddress: session["mac-address"],
+        loginTime: session["login-by"],
+        uptime: session.uptime,
+        sessionId: session[".id"],
+      })),
+      connectionHistory: history.map((entry) => ({
+        ipAddress: entry.address,
+        macAddress: entry["mac-address"],
+        lastSeen: entry["last-seen"],
+        status: entry.status,
+      })),
+    };
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    return null;
   }
 }
 
@@ -132,6 +209,28 @@ async function getNetworkData() {
     return { interfaces: [], usageByIP: {}, activeIPs: 0 };
   }
 }
+
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+app.get("/api/users/:username", async (req, res) => {
+  try {
+    const userDetails = await getUserDetails(req.params.username);
+    if (!userDetails) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(userDetails);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch user details" });
+  }
+});
 
 // REST endpoint for initial data
 app.get("/api/network-data", async (req, res) => {
