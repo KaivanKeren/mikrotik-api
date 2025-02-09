@@ -210,6 +210,28 @@ async function getNetworkData() {
   }
 }
 
+async function getAllLogs() {
+  try {
+    await connectMikroTik();
+
+    const logs = await connection.write("/log/print", []); // Tanpa filter
+
+    return logs;
+  } catch (error) {
+    console.error("Error fetching logs:", error);
+    return [];
+  }
+}
+
+app.get("/api/logs/all", async (req, res) => {
+  try {
+    const logs = await getAllLogs();
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch logs" });
+  }
+});
+
 app.get("/api/users", async (req, res) => {
   try {
     const users = await getAllUsers();
