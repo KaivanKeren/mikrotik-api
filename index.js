@@ -3,6 +3,8 @@ const RouterOSAPI = require("node-routeros").RouterOSAPI;
 const WebSocket = require("ws");
 const cors = require("cors");
 
+require("dotenv").config();
+
 const app = express();
 const port = 3030;
 
@@ -10,9 +12,9 @@ app.use(cors());
 
 // MikroTik connection configuration
 const connection = new RouterOSAPI({
-  host: "192.168.1.6",
-  user: "user-api",
-  password: "123123",
+  host: process.env.ROUTER_HOST,
+  user: process.env.ROUTER_USER,
+  password: process.env.ROUTER_PASSWORD,
 });
 
 // WebSocket server setup
