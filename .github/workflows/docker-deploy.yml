@@ -3,7 +3,7 @@ name: Build and Push to GHCR
 on:
   push:
     branches:
-      - main # Bisa diubah sesuai kebutuhan
+      - main
 
 jobs:
   build-and-push:
@@ -19,7 +19,7 @@ jobs:
           node-version: 18
 
       - name: Install Dependencies
-        run: npm install # atau pnpm install / yarn install
+        run: npm install
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
