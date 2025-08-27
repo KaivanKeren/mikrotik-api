@@ -38,16 +38,24 @@ wss.on("connection", (ws) => {
   });
 });
 
+let isConnecting = false;
+
 async function connectMikroTik() {
-  if (!connection.connected) {
-    try {
-      console.log("Connecting to MikroTik...");
-      await connection.connect();
-    } catch (error) {
-      console.error("Error connecting to MikroTik:", error);
-    }
+  if (connection.connected) return;
+  if (isConnecting) return;
+
+  try {
+    isConnecting = true;
+    console.log("Connecting to MikroTik...");
+    await connection.connect();
+    console.log("Connected to MikroTik");
+  } catch (error) {
+    console.error("Error connecting to MikroTik:", error);
+  } finally {
+    isConnecting = false;
   }
 }
+
 
 // Get active IP addresses
 async function getActiveIPs() {
